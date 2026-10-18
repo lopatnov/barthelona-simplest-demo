@@ -1,45 +1,75 @@
 # barthelona-simplest-demo
 
-A Snake game in four NASM x86-64 Linux modules, checked by [barthelona](https://github.com/lopatnov/barthelona)'s
-verification ladder in its Docker sandbox. It is the first project run through that pipeline end to end.
+An interactive temperament questionnaire for the terminal, written in four NASM x86-64 Linux modules and checked by
+[barthelona](https://github.com/lopatnov/barthelona)'s verification ladder in its Docker sandbox. It is the first
+project run through that pipeline end to end. The interface is in Russian.
 
-## What it does
+## Try it
 
-The program reads a script of keys from stdin (`w a s d`, either case; other bytes are skipped), plays that
-many Snake moves, then prints the final board and score:
+Download `temperament-linux-x86_64` from the [latest release](https://github.com/lopatnov/barthelona-simplest-demo/releases/latest)
+(Linux x86-64 only; on Windows use WSL2), then:
 
 ```
-$ printf 'ddddsssaaaaaaaawwwd' | ./snake
-+----------------+
-|                |
-|                |
-|                |
-|                |
-|    oO          |
-|    o           |
-|    o     *     |
-|    oo          |
-+----------------+
-SCORE 3
-ALIVE
+chmod +x temperament-linux-x86_64
+./temperament-linux-x86_64
 ```
 
-`O` is the head, `o` the body, `*` the food and `X` a dead head. The board is 16x8. Walls and the snake's own
-body kill it. A turn straight back onto the neck is ignored. Food comes from a seeded generator, so a key script
-always gives the same game. There is no live keyboard mode yet: raw terminal input and timing need `ioctl`
-and `poll` handling that the sandbox golden tests cannot check.
+It explains itself and waits for you. Twelve yes/no questions, one at a time:
+
+```
+=== Опросник темперамента ===
+Это короткий тест из 12 вопросов. Он оценивает два свойства по методике Айзенка:
+...
+Как отвечать: на каждый вопрос введите д (да) или н (нет) и нажмите Enter.
+Подойдут также y/n, да/нет и 1/0. Думайте недолго: первый ответ обычно самый честный.
+Чтобы выйти раньше, нажмите Ctrl+D.
+
+Вопрос 1 из 12
+Вы легко знакомитесь с новыми людьми?
+Ваш ответ (д/н): д
+```
+
+An answer it does not understand is asked again. At the end it prints both scores and the verdict:
+
+```
+Результат
+Общительность (экстраверсия): 3 из 6
+Эмоциональная неустойчивость (нейротизм): 4 из 6
+
+Ваш темперамент: МЕЛАНХОЛИК
+Чувствительный, вдумчивый и склонный к тревоге. ...
+```
+
+You can also pipe the answers in (`printf 'д\nн\n...' | ./temperament-linux-x86_64`); that is how the tests work.
+
+## How the verdict is computed
+
+The method is Eysenck's: two dimensions, **extraversion** (E) and **neuroticism** (N), combined into the four
+classical temperaments. Questions alternate between the two dimensions, six each, and every "yes" is one point.
+Four or more points make a dimension "high":
+
+| | N low | N high |
+| --- | --- | --- |
+| **E high** | sanguine | choleric |
+| **E low** | phlegmatic | melancholic |
+
+The twelve questions are original wording in the spirit of the method, not the copyrighted items of the Eysenck
+Personality Inventory, and all of them are keyed "yes". This is a toy for a demo: the result is a rough guide, not
+a diagnosis.
 
 ## Modules
 
 | Module | Exports | Job |
 | --- | --- | --- |
-| `snake/input.asm` | `input_read_moves`, `input_dir_of` | read stdin, map keys to directions |
-| `snake/game.asm` | `game_init`, `game_step`, `game_cell`, `game_score`, `game_alive` | rules and state, no I/O |
-| `snake/render.asm` | `render_board`, `render_status` | draw the board and status line |
-| `snake/main.asm` | `_start` | replay the key script, print the result |
+| `temperament/input.asm` | `input_read_line`, `input_classify` | read one answer line, decide yes / no / not an answer |
+| `temperament/quiz.asm` | `quiz_question`, `quiz_dimension`, `quiz_temperament`, `quiz_name`, `quiz_meaning` | questions, scoring rule and verdict texts, no I/O |
+| `temperament/render.asm` | `render_text`, `render_number` | write text and numbers to stdout |
+| `temperament/main.asm` | `_start` | the interactive flow: greet, ask, re-ask, score, verdict |
 
-`snake/contracts.yaml` is the single source of truth for these interfaces. `snake/tests.yaml` holds the frozen
-tests: 9 whole-program golden cases (V6) and 7 single-function C-harness cases (V5).
+`temperament/contracts.yaml` is the single source of truth for these interfaces. `temperament/tests.yaml` holds the
+frozen tests: 16 whole-program golden cases (V6: scripted answers piped to stdin, full stdout compared; all four
+verdicts, the thresholds, odd spellings, CRLF, bad input, early end of input) and 22 single-function C-harness
+cases (V5).
 
 ## What the system did and what Claude wrote
 
@@ -49,58 +79,67 @@ below that line of work was done by the real pipeline:
 
 | Part | Who |
 | --- | --- |
-| `snake/*.asm` source code | Claude, by hand (no engine yet) |
-| `tools/reference.py`, `tools/make_tests.py`, `snake/contracts.yaml` | Claude, by hand |
-| `snake/tests.yaml` golden output | generated from the Python model in `tools/reference.py` |
-| `snake/gen/*.inc`, `snake/gen/contracts.h`, `snake/gen/harness/*.c` | **barthelona codegen** from `contracts.yaml` |
+| `temperament/*.asm` source code | Claude, by hand (no engine yet) |
+| `tools/reference.py`, `tools/make_tests.py`, `temperament/contracts.yaml` | Claude, by hand |
+| `temperament/tests.yaml` golden output | generated from the Python model in `tools/reference.py` |
+| `temperament/gen/*.inc`, `gen/contracts.h`, `gen/harness/*.c` | **barthelona codegen** from `contracts.yaml` |
 | Tamper gate (`gen/` equals a fresh codegen run) | **barthelona** |
 | V0 syntax, V1 assemble + `nm` symbols vs contracts, V2 link | **barthelona**, in the `bart-tc` container |
 | V5 C harness, V6 golden I/O | **barthelona**, built in `bart-tc` and run in the locked-down `bart-run` container |
 
-The assembly was also run once in the authoring session's throwaway container against 400 random key scripts
-and the golden cases, to compare it with the Python model before CI saw it.
+The assembly was also run in the authoring session's throwaway container against all golden cases, and once in a
+real pseudo-terminal with typed answers (including a wrong one), before CI saw it.
+
+### A lesson from the first version
+
+The first version of this demo was a Snake game that read a script of keys from stdin. It passed every level of the
+ladder and was still useless: started by hand, it sat waiting on stdin with no hint of what to type. barthelona's
+ladder checks that code builds, links and matches its golden outputs; it has no check that a human can actually use
+the result. That gap is recorded as [barthelona#135](https://github.com/lopatnov/barthelona/issues/135) (label `agent-system-gap`). The questionnaire is the fix on this
+side: the program tells you what to do, and the golden cases include the greeting and the instructions.
 
 ## Gaps found in the pipeline
 
 Nothing was faked around these; each has a barthelona issue and a visible workaround here:
 
 - [barthelona#122](https://github.com/lopatnov/barthelona/issues/122): NASM modules cannot `%include gen/<module>.inc`
-  during verify, so each module declares its `global`/`extern` lines by hand and `BOARD_W`/`BOARD_H` appear in both
-  the source and `contracts.yaml`. V1's `nm` check still enforces that exports and imports match the contracts.
+  during verify, so each module declares its `global`/`extern` lines by hand and a few constants (`QUESTIONS`,
+  `HIGH_AT`, `LINE_CAP`) appear in both the source and `contracts.yaml`. V1's `nm` check still enforces that
+  exports and imports match the contracts.
 - [barthelona#123](https://github.com/lopatnov/barthelona/issues/123): `verify --level V6` exits 1 while V3 and V4 have
   no check, so CI reads the report with `tools/check_ladder.py` instead of the exit code.
 
-V3 (static ABI lint) and V4 (Unicorn) do not exist yet, so the ABI rules in the sources (callee-saved registers,
-stack alignment) are checked by the C harness and golden runs only.
+V3 (static ABI lint) and V4 (Unicorn) do not exist yet, so the ABI rules in the sources (stack alignment,
+register use) are checked by the C harness and golden runs only. The generated C harness also cannot call functions
+that return pointers, so `quiz_question`, `quiz_name` and `quiz_meaning` are covered only through the golden runs.
 
 ## CI
 
 `.github/workflows/ci.yml` runs on every push and pull request:
 
-1. `reference`: regenerates `snake/tests.yaml` from the Python model and fails on any diff.
+1. `reference`: regenerates `temperament/tests.yaml` from the Python model and fails on any diff.
 2. `verify`: installs barthelona at a pinned commit, rebuilds `gen/` and fails on any diff, builds the sandbox
-   images, then runs `barthelona verify snake --level V6` and requires tamper, V0, V1, V2, V5 and V6 to pass.
+   images, then runs `barthelona verify temperament --level V6` and requires tamper, V0, V1, V2, V5 and V6 to pass.
 
-## Download
+`.github/workflows/release.yml` builds the binary on GitHub (NASM + `ld`) and publishes the release.
 
-Releases hold a `snake-linux-x86_64` binary built by `.github/workflows/release.yml` when a `v*` tag is pushed.
-It is **Linux x86-64 only** (static ELF64, raw syscalls, no libc); on Windows use WSL2.
-
-## Run it yourself
+## Run the checks yourself
 
 ```
-python tools/reference.py < keys.txt          # the Python model
+python tools/reference.py < answers.txt       # the Python model
 pip install barthelona                        # or an editable checkout
 python -m barthelona probe                    # needs the bart-tc container
-python -m barthelona verify snake --level V6 --contracts snake/contracts.yaml --tests snake/tests.yaml
+python -m barthelona verify temperament --level V6 --contracts temperament/contracts.yaml --tests temperament/tests.yaml
 ```
 
-The generated binary must only ever run in the sandbox (`bart-run`), never directly on your host.
+Build it by hand: `nasm -f elf64` each of the four `.asm` files, then
+`ld -z noexecstack -e _start -o temperament main.o input.o quiz.o render.o`. CI runs the generated tests only in the
+sandbox (`bart-run`); run a binary you did not build yourself only somewhere you trust.
 
 ## Layout
 
 ```
-snake/            sources, contracts.yaml, tests.yaml, gen/ (generated, committed)
+temperament/      sources, contracts.yaml, tests.yaml, gen/ (generated, committed)
 tools/            reference.py (Python model), make_tests.py, gen.py, check_ladder.py
-.github/          CI
+.github/          CI and release workflows
 ```

@@ -1,4 +1,4 @@
-"""Regenerate snake/gen/ from snake/contracts.yaml with barthelona's codegen (needs `pip install barthelona`)."""
+"""Regenerate temperament/gen/ from temperament/contracts.yaml with barthelona's codegen (needs `pip install barthelona`)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 from barthelona.contracts import load_registry, load_test_cases
 from barthelona.contracts.codegen import render_all
 
-PROJECT = Path(__file__).parents[1] / "snake"
+PROJECT = Path(__file__).parents[1] / "temperament"
 
 registry = load_registry(PROJECT / "contracts.yaml")
 tests = load_test_cases(PROJECT / "tests.yaml")

@@ -1,4 +1,4 @@
-# Verifies the Snake project with barthelona's own verification ladder, inside its Docker sandbox.
+# Verifies the temperament questionnaire with barthelona's own verification ladder, inside its Docker sandbox.
 name: ci
 
 on:
@@ -32,7 +32,7 @@ jobs:
       - name: Regenerate tests.yaml from the reference model
         run: python tools/make_tests.py
       - name: tests.yaml is unchanged
-        run: git diff --exit-code -- snake/tests.yaml
+        run: git diff --exit-code -- temperament/tests.yaml
 
   verify:
     runs-on: ubuntu-latest
@@ -57,7 +57,7 @@ jobs:
       - name: gen/ equals a fresh codegen run
         run: |
           python tools/gen.py
-          git diff --exit-code -- snake/gen
+          git diff --exit-code -- temperament/gen
       - name: Build the sandbox images
         run: |
           docker build -q -t bart-tc barthelona/docker/toolchain
@@ -71,7 +71,7 @@ jobs:
             --user "$(id -u):$(id -g)" -v "$cache:$cache" bart-tc
       - name: barthelona verify
         run: |
-          python -m barthelona verify snake --level V6 --transport local --run-id snake \
-            --contracts snake/contracts.yaml --tests snake/tests.yaml > ladder.txt || true
+          python -m barthelona verify temperament --level V6 --transport local --run-id temperament \
+            --contracts temperament/contracts.yaml --tests temperament/tests.yaml > ladder.txt || true
       - name: The required levels pass
         run: python tools/check_ladder.py < ladder.txt

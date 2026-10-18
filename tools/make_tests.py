@@ -1,89 +1,90 @@
-"""Write snake/tests.yaml: the frozen acceptance tests of the Snake project (invariant 4).
+"""Write temperament/tests.yaml: the frozen acceptance tests of the questionnaire (invariant 4).
 
-V6 golden cases take their expected stdout from tools/reference.py; V5 cases check single functions
-through the generated C harness. Run `python tools/make_tests.py` and commit the result; CI fails if
-the committed file differs from a fresh run.
+V6 golden cases pipe scripted answers into the program and take the expected stdout from
+tools/reference.py; V5 cases check single functions through the generated C harness. Run
+`python tools/make_tests.py` and commit the result; CI fails if the committed file differs from a fresh run.
 """
 
 from __future__ import annotations
 
 import json
 import sys
-from collections import deque
-from copy import deepcopy
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from reference import HEIGHT, KEYS, STEPS, WIDTH, Game, play
+from reference import QUESTIONS, packed, run
 
-LETTER = {value: key for key, value in KEYS.items()}
-OUT = Path(__file__).parents[1] / "snake" / "tests.yaml"
-
-
-def path_to_food(game: Game) -> str:
-    """Shortest key path from the head to the food that avoids the body (the tail may be passed)."""
-    start, goal = game.body[0], game.food
-    blocked = set(game.body[:-1])
-    seen = {start: ""}
-    queue = deque([start])
-    while queue:
-        cell = queue.popleft()
-        if cell == goal:
-            return seen[cell]
-        for direction, (dx, dy) in enumerate(STEPS):
-            nxt = (cell[0] + dx, cell[1] + dy)
-            if 0 <= nxt[0] < WIDTH and 0 <= nxt[1] < HEIGHT and nxt not in blocked and nxt not in seen:
-                seen[nxt] = seen[cell] + LETTER[direction]
-                queue.append(nxt)
-    raise RuntimeError("food is unreachable")
+OUT = Path(__file__).parents[1] / "temperament" / "tests.yaml"
 
 
-def eat(foods: int) -> str:
-    """Keys that make the snake eat *foods* foods in a row."""
-    game, keys = Game(), ""
-    for _ in range(foods):
-        steps = path_to_food(game)
-        for key in steps:
-            game.step(KEYS[key])
-        keys += steps
-    assert game.score == foods and not game.dead
-    return keys
+def script(answers: str) -> str:
+    """One answer per line; 'y' and 'n' stand for the plain 'д' and 'н'."""
+    return "".join(f"{'д' if a == 'y' else 'н' if a == 'n' else a}\n" for a in answers)
 
 
-def suicide_after(prefix: str) -> str:
-    """The shortest key string that, after *prefix*, makes the snake bite itself."""
-    base = play(prefix)
-    queue = deque([""])
-    while queue:
-        keys = queue.popleft()
-        game = deepcopy(base)
-        results = [game.step(KEYS[key]) for key in keys]
-        if results and results[-1] == 2:
-            return keys
-        if len(keys) < 6 and not game.dead:
-            queue.extend(keys + key for key in "wasd")
-    raise RuntimeError("no self-collision found")
+def alternating(extra: str, neuro: str) -> str:
+    """Answers for the 12 questions: even positions are extraversion, odd ones neuroticism."""
+    return "".join(extra[i // 2] if i % 2 == 0 else neuro[i // 2] for i in range(len(QUESTIONS)))
 
 
-def golden_cases() -> list[tuple[str, str, str]]:
-    five = eat(5)
-    bite = five + suicide_after(five)
+def golden_cases() -> list[tuple[str, str]]:
     return [
-        ("start_idle", "", "no keys: the starting board"),
-        ("right_four", "dddd", "four steps right"),
-        ("walls_kill", "d" * 9, "the ninth step right leaves the board"),
-        ("reverse_ignored", "a", "a turn straight back onto the neck keeps the heading"),
-        ("keys_filtered", "x D\nd\t?d", "unknown bytes are skipped, upper case works"),
-        ("eat_three", eat(3), "three foods eaten"),
-        ("eat_five", five, "five foods: the snake is 8 cells long"),
-        ("bite_itself", bite, "five foods, then a loop that hits the body"),
-        ("dead_stays_dead", "d" * 9 + "ssss", "keys after death change nothing"),
+        ("sanguine", script(alternating("yyyyyy", "nnnnnn"))),
+        ("choleric", script(alternating("yyyyyy", "yyyyyy"))),
+        ("phlegmatic", script(alternating("nnnnnn", "nnnnnn"))),
+        ("melancholic", script(alternating("nnnnnn", "yyyyyy"))),
+        ("border_sanguine", script(alternating("yyyynn", "yyynnn"))),
+        ("border_melancholic", script(alternating("yyynnn", "yyyynn"))),
+        ("border_phlegmatic", script(alternating("yyynnn", "yyynnn"))),
+        ("border_choleric", script(alternating("yyyynn", "yyyynn"))),
+        ("spellings", "".join(f"{word}\n" for word in ("Да", "нет", "Y", "no", "1", "0", "ДА", "НЕТ", "Yes", "NO", "н", "Д"))),
+        ("spaces_and_crlf", "  д  \r\n\tн\r\n" + script("ynynynynyn")),
+        ("retry_then_ok", "x\n\nmaybe\nдан\nyesyesyes\n" + script("ynynynynynyn")),
+        ("long_line_rejected", "д" * 40 + "\n" + script("ynynynynynyn")),
+        ("last_answer_without_newline", script("ynynynynyny") + "n"),
+        ("quits_early", script("yny")),
+        ("empty_input", ""),
+        ("eof_after_retry", script("yn") + "zzz\n"),
+    ]
+
+
+def harness_cases() -> list[tuple[str, str, dict[str, int], int]]:
+    def classify(name: str, word: str, expect: int) -> tuple[str, str, dict[str, int], int]:
+        return (f"classify_{name}", "input_classify", {"rdi": len(word.encode()), "rsi": packed(word)}, expect)
+
+    def temperament(name: str, extra: int, neuro: int, expect: int) -> tuple[str, str, dict[str, int], int]:
+        return (f"temperament_{name}", "quiz_temperament", {"rdi": extra, "rsi": neuro}, expect)
+
+    return [
+        classify("yes_latin", "y", 1),
+        classify("yes_cyrillic", "д", 1),
+        classify("yes_cyrillic_word", "да", 1),
+        classify("yes_digit", "1", 1),
+        classify("no_latin_word", "no", 2),
+        classify("no_cyrillic_upper", "Н", 2),
+        classify("no_cyrillic_word", "нет", 2),
+        classify("no_digit", "0", 2),
+        classify("junk", "x", 0),
+        classify("mixed_case_rejected", "yEs", 0),
+        ("classify_empty_line", "input_classify", {"rdi": 0, "rsi": packed("y")}, 0),
+        ("classify_ignores_stale_bytes", "input_classify", {"rdi": 1, "rsi": packed("yes")}, 1),
+        ("classify_too_long", "input_classify", {"rdi": 9, "rsi": packed("yes")}, 0),
+        ("dimension_first_is_extraversion", "quiz_dimension", {"rdi": 0}, 0),
+        ("dimension_second_is_neuroticism", "quiz_dimension", {"rdi": 1}, 1),
+        ("dimension_last_is_neuroticism", "quiz_dimension", {"rdi": len(QUESTIONS) - 1}, 1),
+        temperament("sanguine", 6, 0, 0),
+        temperament("choleric", 6, 6, 1),
+        temperament("phlegmatic", 0, 0, 2),
+        temperament("melancholic", 0, 6, 3),
+        temperament("border_high", 4, 4, 1),
+        temperament("border_low", 3, 3, 2),
     ]
 
 
 def yaml_text() -> str:
     lines = ["# GENERATED by tools/make_tests.py from tools/reference.py. Frozen: do not edit by hand."]
-    for name, keys, _ in golden_cases():
+    for name, stdin in golden_cases():
+        stdout, code = run(stdin.encode())
         lines += [
             f"- id: golden_{name}",
             "  kind: io_golden",
@@ -91,21 +92,12 @@ def yaml_text() -> str:
             "  origin: test_author",
             "  approved: true",
             "  inputs:",
-            f"    stdin: {json.dumps(keys)}",
+            f"    stdin: {json.dumps(stdin)}",
             "  expect:",
-            f"    stdout: {json.dumps(play(keys).render())}",
-            "    exit_code: 0",
+            f"    stdout: {json.dumps(stdout)}",
+            f"    exit_code: {code}",
         ]
-    harness = [
-        ("dir_up", "input_dir_of", {"rdi": ord("w")}, 0),
-        ("dir_right", "input_dir_of", {"rdi": ord("d")}, 1),
-        ("dir_down", "input_dir_of", {"rdi": ord("s")}, 2),
-        ("dir_left", "input_dir_of", {"rdi": ord("a")}, 3),
-        ("dir_upper_case", "input_dir_of", {"rdi": ord("S")}, 2),
-        ("dir_other_key", "input_dir_of", {"rdi": ord("x")}, -1),
-        ("score_starts_at_zero", "game_score", {}, 0),
-    ]
-    for name, symbol, inputs, ret in harness:
+    for name, symbol, inputs, ret in harness_cases():
         lines += [
             f"- id: harness_{name}",
             "  kind: c_harness",
