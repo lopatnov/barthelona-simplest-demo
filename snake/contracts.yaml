@@ -1,0 +1,89 @@
+# Interfaces of the Snake project: the single source of truth (invariant 3). gen/ is generated from this file.
+version: 1
+target:
+  preset: linux-x64-nasm-static
+  dialect: nasm
+  arch: x86-64
+  os: linux
+  abi: sysv64
+  obj_format: elf64
+  link: ld
+  entry: _start
+  run_env: docker-native
+consts:
+  BOARD_W: 16
+  BOARD_H: 8
+  MAX_MOVES: 4096
+symbols:
+  _start:
+    name: _start
+    kind: func
+    module: main.asm
+    abi: custom
+    calls: [game_init, input_read_moves, input_dir_of, game_step, render_board, render_status]
+  input_read_moves:
+    name: input_read_moves
+    kind: func
+    module: input.asm
+    inputs:
+      - {reg: rdi, type: "u8*", desc: buffer}
+      - {reg: rsi, type: u64, desc: capacity in bytes}
+    outputs:
+      - {reg: rax, type: u64, desc: bytes read before EOF or a full buffer}
+    clobbers: [rcx, rdx, rsi, rdi, r8, r9, r10, r11]
+  input_dir_of:
+    name: input_dir_of
+    kind: func
+    module: input.asm
+    inputs:
+      - {reg: rdi, type: u8, desc: key byte}
+    outputs:
+      - {reg: rax, type: i64, desc: "0 up, 1 right, 2 down, 3 left, -1 for any other key"}
+  game_init:
+    name: game_init
+    kind: func
+    module: game.asm
+    clobbers: [rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11]
+  game_step:
+    name: game_step
+    kind: func
+    module: game.asm
+    inputs:
+      - {reg: rdi, type: u64, desc: direction 0..3}
+    outputs:
+      - {reg: rax, type: u64, desc: "0 moved, 1 ate, 2 died, 3 ignored"}
+    clobbers: [rcx, rdx, rsi, rdi, r8, r9, r10, r11]
+  game_cell:
+    name: game_cell
+    kind: func
+    module: game.asm
+    inputs:
+      - {reg: rdi, type: u64, desc: x below BOARD_W}
+      - {reg: rsi, type: u64, desc: y below BOARD_H}
+    outputs:
+      - {reg: rax, type: u64, desc: "0 empty, 1 head, 2 body, 3 food, 4 dead head"}
+    clobbers: [rcx, rdx, r8, r9, r10]
+  game_score:
+    name: game_score
+    kind: func
+    module: game.asm
+    outputs:
+      - {reg: rax, type: u64, desc: foods eaten}
+  game_alive:
+    name: game_alive
+    kind: func
+    module: game.asm
+    outputs:
+      - {reg: rax, type: u64, desc: 1 while alive}
+  render_board:
+    name: render_board
+    kind: func
+    module: render.asm
+    calls: [game_cell]
+    clobbers: [rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11]
+  render_status:
+    name: render_status
+    kind: func
+    module: render.asm
+    calls: [game_score, game_alive]
+    clobbers: [rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11]
