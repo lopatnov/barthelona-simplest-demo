@@ -1,0 +1,101 @@
+# Interfaces of the temperament questionnaire: the single source of truth (invariant 3). gen/ is generated from this file.
+version: 1
+target:
+  preset: linux-x64-nasm-static
+  dialect: nasm
+  arch: x86-64
+  os: linux
+  abi: sysv64
+  obj_format: elf64
+  link: ld
+  entry: _start
+  run_env: docker-native
+consts:
+  QUESTIONS: 12
+  LINE_CAP: 16
+  HIGH_AT: 4
+symbols:
+  _start:
+    name: _start
+    kind: func
+    module: main.asm
+    abi: custom
+    calls: [input_read_line, input_classify, quiz_question, quiz_dimension, quiz_temperament, quiz_name, quiz_meaning, render_text, render_number]
+  input_read_line:
+    name: input_read_line
+    kind: func
+    module: input.asm
+    inputs:
+      - {reg: rdi, type: "u8*", desc: buffer}
+      - {reg: rsi, type: u64, desc: capacity in bytes}
+    outputs:
+      - {reg: rax, type: i64, desc: "bytes stored from one line (CR, space and tab dropped), -1 at EOF with nothing read"}
+    clobbers: [rcx, rdx, rsi, rdi, r8, r9, r10, r11]
+  input_classify:
+    name: input_classify
+    kind: func
+    module: input.asm
+    inputs:
+      - {reg: rdi, type: u64, desc: line length in bytes}
+      - {reg: rsi, type: u64, desc: "first eight bytes of the line, little-endian; bytes past the length are ignored"}
+    outputs:
+      - {reg: rax, type: u64, desc: "0 not an answer, 1 yes, 2 no"}
+    clobbers: [rcx, rdx, rsi, r8]
+  quiz_question:
+    name: quiz_question
+    kind: func
+    module: quiz.asm
+    inputs:
+      - {reg: rdi, type: u64, desc: question index below QUESTIONS}
+    outputs:
+      - {reg: rax, type: "u8*", desc: "zero-terminated question text, 0 when out of range"}
+    clobbers: [rcx]
+  quiz_dimension:
+    name: quiz_dimension
+    kind: func
+    module: quiz.asm
+    inputs:
+      - {reg: rdi, type: u64, desc: question index}
+    outputs:
+      - {reg: rax, type: u64, desc: "0 extraversion, 1 neuroticism"}
+  quiz_temperament:
+    name: quiz_temperament
+    kind: func
+    module: quiz.asm
+    inputs:
+      - {reg: rdi, type: u64, desc: extraversion yes count}
+      - {reg: rsi, type: u64, desc: neuroticism yes count}
+    outputs:
+      - {reg: rax, type: u64, desc: "0 sanguine, 1 choleric, 2 phlegmatic, 3 melancholic"}
+  quiz_name:
+    name: quiz_name
+    kind: func
+    module: quiz.asm
+    inputs:
+      - {reg: rdi, type: u64, desc: temperament 0..3}
+    outputs:
+      - {reg: rax, type: "u8*", desc: "zero-terminated name, 0 when out of range"}
+    clobbers: [rcx]
+  quiz_meaning:
+    name: quiz_meaning
+    kind: func
+    module: quiz.asm
+    inputs:
+      - {reg: rdi, type: u64, desc: temperament 0..3}
+    outputs:
+      - {reg: rax, type: "u8*", desc: "zero-terminated description, 0 when out of range"}
+    clobbers: [rcx]
+  render_text:
+    name: render_text
+    kind: func
+    module: render.asm
+    inputs:
+      - {reg: rdi, type: "u8*", desc: zero-terminated string}
+    clobbers: [rax, rcx, rdx, rsi, rdi, r11]
+  render_number:
+    name: render_number
+    kind: func
+    module: render.asm
+    inputs:
+      - {reg: rdi, type: u64, desc: number to print in decimal}
+    clobbers: [rax, rcx, rdx, rsi, rdi, r9, r10, r11]

@@ -1,16 +1,16 @@
-A Snake game in four NASM modules, checked by [barthelona](https://github.com/lopatnov/barthelona)'s verification ladder.
+An interactive temperament questionnaire (Russian interface) in four NASM modules, checked by [barthelona](https://github.com/lopatnov/barthelona)'s verification ladder.
 
 **Platform: Linux x86-64 only.** It is a static ELF64 binary that uses raw Linux syscalls and no libc. It does not run natively on Windows, macOS or ARM. On Windows, run it inside WSL2.
 
 ## Run
 
 ```
-sha256sum -c snake-linux-x86_64.sha256
-chmod +x snake-linux-x86_64
-printf 'ddddsssaaaaaaaawwwd' | ./snake-linux-x86_64
+sha256sum -c temperament-linux-x86_64.sha256
+chmod +x temperament-linux-x86_64
+./temperament-linux-x86_64
 ```
 
-It reads a script of keys (`w a s d`, either case) from stdin and prints the final 16x8 board and score. Run a binary you downloaded in a sandbox you trust; the repository's CI runs it only inside barthelona's locked-down container.
+The program explains itself: it asks 12 yes/no questions one by one (answer `д` or `н`, also `y/n`, `да/нет`, `1/0`), re-asks when it does not understand, and ends with your temperament: sanguine, choleric, phlegmatic or melancholic. Ctrl+D quits early. The result is a rough guide, not a diagnosis. Run a binary you downloaded in a sandbox you trust; the repository's CI runs it only inside barthelona's locked-down container.
 
 ## Who wrote what
 
