@@ -81,6 +81,11 @@ stack alignment) are checked by the C harness and golden runs only.
 2. `verify`: installs barthelona at a pinned commit, rebuilds `gen/` and fails on any diff, builds the sandbox
    images, then runs `barthelona verify snake --level V6` and requires tamper, V0, V1, V2, V5 and V6 to pass.
 
+## Download
+
+Releases hold a `snake-linux-x86_64` binary built by `.github/workflows/release.yml` when a `v*` tag is pushed.
+It is **Linux x86-64 only** (static ELF64, raw syscalls, no libc); on Windows use WSL2.
+
 ## Run it yourself
 
 ```
