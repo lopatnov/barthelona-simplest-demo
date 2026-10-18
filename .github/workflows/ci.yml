@@ -1,0 +1,77 @@
+# Verifies the Snake project with barthelona's own verification ladder, inside its Docker sandbox.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The barthelona commit this demo is verified with. Bump it deliberately.
+  BARTHELONA_REF: d76afc5ed3f5611bff1f7594035a1fbc4ac65686
+
+jobs:
+  reference:
+    # The Python model and the frozen golden file must agree, and the model must be clean.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Regenerate tests.yaml from the reference model
+        run: python tools/make_tests.py
+      - name: tests.yaml is unchanged
+        run: git diff --exit-code -- snake/tests.yaml
+
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: lopatnov/barthelona
+          ref: ${{ env.BARTHELONA_REF }}
+          path: barthelona
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install barthelona from its hash-locked runtime dependencies
+        run: |
+          python -m pip install --disable-pip-version-check --require-hashes --no-deps -r barthelona/requirements/runtime.linux.lock
+          python -m pip install --disable-pip-version-check --no-deps -e barthelona
+      - name: gen/ equals a fresh codegen run
+        run: |
+          python tools/gen.py
+          git diff --exit-code -- snake/gen
+      - name: Build the sandbox images
+        run: |
+          docker build -q -t bart-tc barthelona/docker/toolchain
+          docker build -q -t bart-run barthelona/docker/runner
+      - name: Start bart-tc with the cache root mounted
+        run: |
+          cache="$HOME/.cache/barthelona"
+          mkdir -p "$cache"
+          docker run -d --name bart-tc --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --tmpfs /tmp:size=16m \
+            --user "$(id -u):$(id -g)" -v "$cache:$cache" bart-tc
+      - name: barthelona verify
+        run: |
+          python -m barthelona verify snake --level V6 --transport local --run-id snake \
+            --contracts snake/contracts.yaml --tests snake/tests.yaml > ladder.txt || true
+      - name: The required levels pass
+        run: python tools/check_ladder.py < ladder.txt
