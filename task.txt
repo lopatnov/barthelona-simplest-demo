@@ -1,0 +1,35 @@
+Write a NASM program for Linux x86-64 (elf64, syscalls only, no libc) in one source file: an interactive temperament questionnaire for the terminal. Everything the program prints is in English, plain ASCII, no colours or cursor control.
+
+Flow:
+1. Print the title line "=== Temperament questionnaire ===", then a short explanation of three or four lines: the test has 12 yes/no questions, it scores two traits (extraversion and neuroticism, after Eysenck), and an answer is y or n followed by Enter (yes, no, 1 and 0 also work, in any letter case).
+2. Ask the 12 questions below, one at a time. For each question print "Question N of 12", then the question text on its own line, then the prompt "Your answer (y/n): " without a newline, and read one line from standard input with the read syscall. The answers y, yes and 1 mean yes; n, no and 0 mean no; case does not matter. Any other line, an empty line or a line longer than 32 characters is not an answer: print "Please answer y or n." and ask the same question again without changing the question number. The program must not run past the end of its buffer on a long line and must not carry bytes of a previous line into the next one.
+3. If standard input ends before all 12 questions are answered, print "Cancelled." on its own line and exit with code 1.
+4. Scoring: every "yes" is one point for the trait the question belongs to. Odd-numbered questions measure extraversion (E), even-numbered questions measure neuroticism (N), six each, so each score is 0 to 6. A trait is "high" when its score is 4 or more.
+5. After the last answer print exactly these lines, each ending with a newline:
+   Result
+   Extraversion: <E> of 6
+   Neuroticism: <N> of 6
+   Your temperament: <NAME>
+   <DESCRIPTION>
+   where <E> and <N> are the scores as decimal digits and NAME and DESCRIPTION come from this table:
+   E high, N low  -> SANGUINE     "Sociable, lively and calm under pressure."
+   E high, N high -> CHOLERIC     "Sociable, driven and quick to react."
+   E low,  N low  -> PHLEGMATIC   "Reserved, steady and hard to rattle."
+   E low,  N high -> MELANCHOLIC  "Reserved, thoughtful and prone to worry."
+   Then exit with code 0.
+
+The questions, in this order (E = extraversion, N = neuroticism):
+ 1 (E) Do you make new friends easily?
+ 2 (N) Do your moods change often?
+ 3 (E) Do you enjoy being the centre of attention at a party?
+ 4 (N) Do you often worry about things that might go wrong?
+ 5 (E) Do you like to talk to strangers?
+ 6 (N) Do you get upset easily?
+ 7 (E) Do you prefer plans with many people over plans alone?
+ 8 (N) Do you often feel tense or nervous?
+ 9 (E) Do you usually take the lead in a group?
+10 (N) Do you often feel guilty without a clear reason?
+11 (E) Do you feel full of energy most of the day?
+12 (N) Do small problems keep you awake at night?
+
+The program reads only standard input and writes only standard output, so a test can feed it the answer lines and compare what it prints and its exit code. Return one complete source file in a single code block.
