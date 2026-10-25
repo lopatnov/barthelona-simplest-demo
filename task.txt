@@ -1,0 +1,38 @@
+Write an interactive temperament questionnaire for the Linux x86-64 terminal as one NASM source file (elf64, syscalls only, no libc, no printf). Everything it prints is in English.
+
+It asks these 12 yes/no questions one at a time, in this order. Each question is printed as "Q<number>/12: <text> (y/n): " (the number is 1 to 12, there is no newline after the colon and space), and then the program reads one answer line from standard input. The questions alternate between extraversion (E) and neuroticism (N):
+
+1 (E) Do you enjoy meeting new people?
+2 (N) Do you often feel anxious?
+3 (E) Do you like being the center of attention?
+4 (N) Do you worry a lot about things that might go wrong?
+5 (E) Do you prefer parties to quiet evenings?
+6 (N) Does your mood change quickly?
+7 (E) Do you talk easily to strangers?
+8 (N) Do you often feel tense?
+9 (E) Do you make friends easily?
+10 (N) Do you get upset easily?
+11 (E) Do you like to have people around you?
+12 (N) Do you often feel guilty?
+
+An answer counts as yes when its first character is y or Y; anything else, including the end of the input, counts as no. Every yes adds one point to the dimension of its question, so each dimension scores from 0 to 6. A dimension is high when its score is at least 4, otherwise it is low.
+
+After the 12th answer the program prints a newline and then exactly these three lines (each ending with a newline), with the scores as single digits:
+Extraversion: <score>
+Neuroticism: <score>
+Temperament: <name>
+
+The name is Sanguine (extraversion high, neuroticism low), Choleric (high, high), Phlegmatic (low, low) or Melancholic (extraversion low, neuroticism high). The program then exits with code 0.
+
+The two score lines contain nothing after the score digit: they are exactly "Extraversion: 6" and "Neuroticism: 2", not "Extraversion: 6 (high)".
+
+The tests are exactly these six, one answer per line on standard input, and they check that the output contains the three result lines (and the first question) rather than comparing the whole output:
+1. y to all 12 questions: Extraversion: 6, Neuroticism: 6, Temperament: Choleric.
+2. n to all 12 questions: Extraversion: 0, Neuroticism: 0, Temperament: Phlegmatic.
+3. y to the six E questions (1, 3, 5, 7, 9, 11) and n to the six N questions: Extraversion: 6, Neuroticism: 0, Temperament: Sanguine.
+4. n to the E questions and y to the N questions: Extraversion: 0, Neuroticism: 6, Temperament: Melancholic.
+5. y to questions 1 to 4 and n to the other eight: Extraversion: 2, Neuroticism: 2, Temperament: Phlegmatic.
+6. Y (capital) to all 12 questions: Extraversion: 6, Neuroticism: 6, Temperament: Choleric.
+Every test expects exit code 0.
+
+Return one complete source file in a single code block.

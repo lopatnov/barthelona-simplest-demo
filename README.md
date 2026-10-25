@@ -1,145 +1,105 @@
-# barthelona-simplest-demo
+# temperament-questionnaire-nasm
 
-An interactive temperament questionnaire for the terminal, written in four NASM x86-64 Linux modules and checked by
-[barthelona](https://github.com/lopatnov/barthelona)'s verification ladder in its Docker sandbox. It is the first
-project run through that pipeline end to end. The interface is in Russian.
+An interactive temperament questionnaire written in NASM x86-64 assembly for Linux. It asks 12 alternating yes/no questions measuring extraversion and neuroticism, reads answers from stdin, scores each dimension 0-6, classifies the temperament as Sanguine, Choleric, Phlegmatic, or Melancholic, prints both scores and the temperament name, and exits with code 0. Uses only syscalls (write, read, exit) with no libc.
 
-## Try it
+Linux x86-64, written in NASM, no libc. This repository was produced by
+[Barthelona](https://github.com/lopatnov/barthelona): a person wrote only the request below; the
+specification, the tests, the source and these files were generated, and NASM and the emulator accepted the
+source.
 
-Download `temperament-linux-x86_64` from the [latest release](https://github.com/lopatnov/barthelona-simplest-demo/releases/latest)
-(Linux x86-64 only; on Windows use WSL2), then:
+## Requirements
 
-```
-chmod +x temperament-linux-x86_64
-./temperament-linux-x86_64
-```
+- **R1**: Program prints question 1 as "Q1/12: Do you enjoy meeting new people? (y/n): " with no trailing newline
+- **R2**: Program reads one line from stdin for each of the 12 questions in order
+- **R3**: An answer counts as yes only if its first character is 'y' or 'Y'; any other first character (including EOF) counts as no
+- **R4**: Extraversion score increments for yes answers to questions 1,3,5,7,9,11 and ranges 0-6
+- **R5**: Neuroticism score increments for yes answers to questions 2,4,6,8,10,12 and ranges 0-6
+- **R6**: After the 12th answer, program prints a newline followed by exactly three lines ending with newlines
+- **R7**: First result line is exactly "Extraversion: <digit>" where digit is 0-6
+- **R8**: Second result line is exactly "Neuroticism: <digit>" where digit is 0-6
+- **R9**: Third result line is exactly "Temperament: <name>" where name is Sanguine, Choleric, Phlegmatic, or Melancholic
+- **R10**: Temperament classification: Sanguine (E>=4, N<4), Choleric (E>=4, N>=4), Phlegmatic (E<4, N<4), Melancholic (E<4, N>=4)
+- **R11**: Program exits with exit code 0
+- **R12**: Program uses only sys_write, sys_read, and sys_exit syscalls; no libc functions
 
-It explains itself and waits for you. Twelve yes/no questions, one at a time:
-
-```
-=== Опросник темперамента ===
-Это короткий тест из 12 вопросов. Он оценивает два свойства по методике Айзенка:
-...
-Как отвечать: на каждый вопрос введите д (да) или н (нет) и нажмите Enter.
-Подойдут также y/n, да/нет и 1/0. Думайте недолго: первый ответ обычно самый честный.
-Чтобы выйти раньше, нажмите Ctrl+D.
-
-Вопрос 1 из 12
-Вы легко знакомитесь с новыми людьми?
-Ваш ответ (д/н): д
-```
-
-An answer it does not understand is asked again. At the end it prints both scores and the verdict:
+## Build and run
 
 ```
-Результат
-Общительность (экстраверсия): 3 из 6
-Эмоциональная неустойчивость (нейротизм): 4 из 6
-
-Ваш темперамент: МЕЛАНХОЛИК
-Чувствительный, вдумчивый и склонный к тревоге. ...
+nasm -f elf64 -o build/temperament.o src/temperament.asm
+ld -z noexecstack -e _start -o build/temperament-questionnaire-nasm-linux-x86_64 build/temperament.o
+./build/temperament-questionnaire-nasm-linux-x86_64
 ```
 
-You can also pipe the answers in (`printf 'д\nн\n...' | ./temperament-linux-x86_64`); that is how the tests work.
+Linux x86-64 only; on Windows use WSL2. Tagged releases (`v*`) carry the binary and its SHA-256.
 
-## How the verdict is computed
+## Test
 
-The method is Eysenck's: two dimensions, **extraversion** (E) and **neuroticism** (N), combined into the four
-classical temperaments. Questions alternate between the two dimensions, six each, and every "yes" is one point.
-Four or more points make a dimension "high":
+The golden tests in `tests/golden.json` run the program in Barthelona's Unicorn emulator, never on the host.
+A test passes when the exit code matches and stdout either matches exactly or, where a test lists texts,
+contains each of them:
 
-| | N low | N high |
-| --- | --- | --- |
-| **E high** | sanguine | choleric |
-| **E low** | phlegmatic | melancholic |
-
-The twelve questions are original wording in the spirit of the method, not the copyrighted items of the Eysenck
-Personality Inventory, and all of them are keyed "yes". This is a toy for a demo: the result is a rough guide, not
-a diagnosis.
-
-## Modules
-
-| Module | Exports | Job |
-| --- | --- | --- |
-| `temperament/input.asm` | `input_read_line`, `input_classify` | read one answer line, decide yes / no / not an answer |
-| `temperament/quiz.asm` | `quiz_question`, `quiz_dimension`, `quiz_temperament`, `quiz_name`, `quiz_meaning` | questions, scoring rule and verdict texts, no I/O |
-| `temperament/render.asm` | `render_text`, `render_number` | write text and numbers to stdout |
-| `temperament/main.asm` | `_start` | the interactive flow: greet, ask, re-ask, score, verdict |
-
-`temperament/contracts.yaml` is the single source of truth for these interfaces. `temperament/tests.yaml` holds the
-frozen tests: 16 whole-program golden cases (V6: scripted answers piped to stdin, full stdout compared; all four
-verdicts, the thresholds, odd spellings, CRLF, bad input, early end of input) and 22 single-function C-harness
-cases (V5).
-
-## What the system did and what Claude wrote
-
-barthelona's engine, model gateway and sprint loop do not exist yet (Phase 0 is not finished). So the four
-`.asm` files were **written by Claude in a chat session, not generated by barthelona's agents**. Everything
-below that line of work was done by the real pipeline:
-
-| Part | Who |
-| --- | --- |
-| `temperament/*.asm` source code | Claude, by hand (no engine yet) |
-| `tools/reference.py`, `tools/make_tests.py`, `temperament/contracts.yaml` | Claude, by hand |
-| `temperament/tests.yaml` golden output | generated from the Python model in `tools/reference.py` |
-| `temperament/gen/*.inc`, `gen/contracts.h`, `gen/harness/*.c` | **barthelona codegen** from `contracts.yaml` |
-| Tamper gate (`gen/` equals a fresh codegen run) | **barthelona** |
-| V0 syntax, V1 assemble + `nm` symbols vs contracts, V2 link | **barthelona**, in the `bart-tc` container |
-| V5 C harness, V6 golden I/O | **barthelona**, built in `bart-tc` and run in the locked-down `bart-run` container |
-
-The assembly was also run in the authoring session's throwaway container against all golden cases, and once in a
-real pseudo-terminal with typed answers (including a wrong one), before CI saw it.
-
-### A lesson from the first version
-
-The first version of this demo was a Snake game that read a script of keys from stdin. It passed every level of the
-ladder and was still useless: started by hand, it sat waiting on stdin with no hint of what to type. barthelona's
-ladder checks that code builds, links and matches its golden outputs; it has no check that a human can actually use
-the result. That gap is recorded as [barthelona#135](https://github.com/lopatnov/barthelona/issues/135) (label `agent-system-gap`). The questionnaire is the fix on this
-side: the program tells you what to do, and the golden cases include the greeting and the instructions.
-
-## Gaps found in the pipeline
-
-Nothing was faked around these; each has a barthelona issue and a visible workaround here:
-
-- [barthelona#122](https://github.com/lopatnov/barthelona/issues/122): NASM modules cannot `%include gen/<module>.inc`
-  during verify, so each module declares its `global`/`extern` lines by hand and a few constants (`QUESTIONS`,
-  `HIGH_AT`, `LINE_CAP`) appear in both the source and `contracts.yaml`. V1's `nm` check still enforces that
-  exports and imports match the contracts.
-- [barthelona#123](https://github.com/lopatnov/barthelona/issues/123): `verify --level V6` exits 1 while V3 and V4 have
-  no check, so CI reads the report with `tools/check_ladder.py` instead of the exit code.
-
-V3 (static ABI lint) and V4 (Unicorn) do not exist yet, so the ABI rules in the sources (stack alignment,
-register use) are checked by the C harness and golden runs only. The generated C harness also cannot call functions
-that return pointers, so `quiz_question`, `quiz_name` and `quiz_meaning` are covered only through the golden runs.
-
-## CI
-
-`.github/workflows/ci.yml` runs on every push and pull request:
-
-1. `reference`: regenerates `temperament/tests.yaml` from the Python model and fails on any diff.
-2. `verify`: installs barthelona at a pinned commit, rebuilds `gen/` and fails on any diff, builds the sandbox
-   images, then runs `barthelona verify temperament --level V6` and requires tamper, V0, V1, V2, V5 and V6 to pass.
-
-`.github/workflows/release.yml` builds the binary on GitHub (NASM + `ld`) and publishes the release.
-
-## Run the checks yourself
+- **T1**: stdin `'y\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\n'` gives stdout containing `'Q1/12: Do you enjoy meeting new people? (y/n): '`, `'Extraversion: 6\n'`, `'Neuroticism: 6\n'`, `'Temperament: Choleric\n'` and exit code 0
+- **T2**: stdin `'n\nn\nn\nn\nn\nn\nn\nn\nn\nn\nn\nn\n'` gives stdout containing `'Q1/12: Do you enjoy meeting new people? (y/n): '`, `'Extraversion: 0\n'`, `'Neuroticism: 0\n'`, `'Temperament: Phlegmatic\n'` and exit code 0
+- **T3**: stdin `'y\nn\ny\nn\ny\nn\ny\nn\ny\nn\ny\nn\n'` gives stdout containing `'Q1/12: Do you enjoy meeting new people? (y/n): '`, `'Extraversion: 6\n'`, `'Neuroticism: 0\n'`, `'Temperament: Sanguine\n'` and exit code 0
+- **T4**: stdin `'n\ny\nn\ny\nn\ny\nn\ny\nn\ny\nn\ny\n'` gives stdout containing `'Q1/12: Do you enjoy meeting new people? (y/n): '`, `'Extraversion: 0\n'`, `'Neuroticism: 6\n'`, `'Temperament: Melancholic\n'` and exit code 0
+- **T5**: stdin `'y\ny\ny\ny\nn\nn\nn\nn\nn\nn\nn\nn\n'` gives stdout containing `'Q1/12: Do you enjoy meeting new people? (y/n): '`, `'Extraversion: 2\n'`, `'Neuroticism: 2\n'`, `'Temperament: Phlegmatic\n'` and exit code 0
+- **T6**: stdin `'Y\nY\nY\nY\nY\nY\nY\nY\nY\nY\nY\nY\n'` gives stdout containing `'Q1/12: Do you enjoy meeting new people? (y/n): '`, `'Extraversion: 6\n'`, `'Neuroticism: 6\n'`, `'Temperament: Choleric\n'` and exit code 0
 
 ```
-python tools/reference.py < answers.txt       # the Python model
-pip install barthelona                        # or an editable checkout
-python -m barthelona probe                    # needs the bart-tc container
-python -m barthelona verify temperament --level V6 --contracts temperament/contracts.yaml --tests temperament/tests.yaml
+python -m barthelona check src/temperament.asm --tests tests/golden.json
 ```
 
-Build it by hand: `nasm -f elf64` each of the four `.asm` files, then
-`ld -z noexecstack -e _start -o temperament main.o input.o quiz.o render.o`. CI runs the generated tests only in the
-sandbox (`bart-run`); run a binary you did not build yourself only somewhere you trust.
+The CI workflow installs a pinned Barthelona commit and runs that command. The result is not ABI-checked or
+fuzzed: only the assembler and the emulated golden tests decided.
 
-## Layout
+## How it was made
 
-```
-temperament/      sources, contracts.yaml, tests.yaml, gen/ (generated, committed)
-tools/            reference.py (Python model), make_tests.py, gen.py, check_ladder.py
-.github/          CI and release workflows
-```
+Request (also in `prompt/request.txt`):
+
+> Write an interactive temperament questionnaire for the Linux x86-64 terminal as one NASM source file (elf64, syscalls only, no libc, no printf). Everything it prints is in English.
+>
+> It asks these 12 yes/no questions one at a time, in this order. Each question is printed as "Q<number>/12: <text> (y/n): " (the number is 1 to 12, there is no newline after the colon and space), and then the program reads one answer line from standard input. The questions alternate between extraversion (E) and neuroticism (N):
+>
+> 1 (E) Do you enjoy meeting new people?
+> 2 (N) Do you often feel anxious?
+> 3 (E) Do you like being the center of attention?
+> 4 (N) Do you worry a lot about things that might go wrong?
+> 5 (E) Do you prefer parties to quiet evenings?
+> 6 (N) Does your mood change quickly?
+> 7 (E) Do you talk easily to strangers?
+> 8 (N) Do you often feel tense?
+> 9 (E) Do you make friends easily?
+> 10 (N) Do you get upset easily?
+> 11 (E) Do you like to have people around you?
+> 12 (N) Do you often feel guilty?
+>
+> An answer counts as yes when its first character is y or Y; anything else, including the end of the input, counts as no. Every yes adds one point to the dimension of its question, so each dimension scores from 0 to 6. A dimension is high when its score is at least 4, otherwise it is low.
+>
+> After the 12th answer the program prints a newline and then exactly these three lines (each ending with a newline), with the scores as single digits:
+> Extraversion: <score>
+> Neuroticism: <score>
+> Temperament: <name>
+>
+> The name is Sanguine (extraversion high, neuroticism low), Choleric (high, high), Phlegmatic (low, low) or Melancholic (extraversion low, neuroticism high). The program then exits with code 0.
+>
+> The two score lines contain nothing after the score digit: they are exactly "Extraversion: 6" and "Neuroticism: 2", not "Extraversion: 6 (high)".
+>
+> The tests are exactly these six, one answer per line on standard input, and they check that the output contains the three result lines (and the first question) rather than comparing the whole output:
+> 1. y to all 12 questions: Extraversion: 6, Neuroticism: 6, Temperament: Choleric.
+> 2. n to all 12 questions: Extraversion: 0, Neuroticism: 0, Temperament: Phlegmatic.
+> 3. y to the six E questions (1, 3, 5, 7, 9, 11) and n to the six N questions: Extraversion: 6, Neuroticism: 0, Temperament: Sanguine.
+> 4. n to the E questions and y to the N questions: Extraversion: 0, Neuroticism: 6, Temperament: Melancholic.
+> 5. y to questions 1 to 4 and n to the other eight: Extraversion: 2, Neuroticism: 2, Temperament: Phlegmatic.
+> 6. Y (capital) to all 12 questions: Extraversion: 6, Neuroticism: 6, Temperament: Choleric.
+> Every test expects exit code 0.
+>
+> Return one complete source file in a single code block.
+
+- Run `run-20261025-015357-d7cd`, profile `meterless`, preset `linux-x64-nasm-static`, policy `v1`.
+- Gates G1 (specification and tests) and G4 (source) were approved by a person.
+- Repeat it: `python -m barthelona runs submit @prompt/request.txt --profile meterless --preset linux-x64-nasm-static`.
+
+| Model | Calls | Tokens in | Tokens out | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| `meterless/auto` | 4 | 54128 | 12977 | 213.5 |
+| `meterless/deep` | 9 | 169582 | 58958 | 916.7 |
