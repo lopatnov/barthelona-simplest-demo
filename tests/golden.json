@@ -1,0 +1,182 @@
+[
+  {
+    "schema_version": 1,
+    "id": "T1",
+    "kind": "io_golden",
+    "symbol": null,
+    "level": "V6",
+    "inputs": {
+      "stdin": "y\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\n"
+    },
+    "expect": {
+      "ret": null,
+      "regs": {},
+      "mem": {},
+      "stdout": null,
+      "stdout_contains": [
+        "Q1/12: Do you enjoy meeting new people? (y/n): ",
+        "Extraversion: 6\n",
+        "Neuroticism: 6\n",
+        "Temperament: Choleric\n"
+      ],
+      "exit_code": 0
+    },
+    "reference": null,
+    "generator": null,
+    "visibility": "visible",
+    "origin": "test_author",
+    "approved": true,
+    "locked": true,
+    "sha256": null
+  },
+  {
+    "schema_version": 1,
+    "id": "T2",
+    "kind": "io_golden",
+    "symbol": null,
+    "level": "V6",
+    "inputs": {
+      "stdin": "n\nn\nn\nn\nn\nn\nn\nn\nn\nn\nn\nn\n"
+    },
+    "expect": {
+      "ret": null,
+      "regs": {},
+      "mem": {},
+      "stdout": null,
+      "stdout_contains": [
+        "Q1/12: Do you enjoy meeting new people? (y/n): ",
+        "Extraversion: 0\n",
+        "Neuroticism: 0\n",
+        "Temperament: Phlegmatic\n"
+      ],
+      "exit_code": 0
+    },
+    "reference": null,
+    "generator": null,
+    "visibility": "visible",
+    "origin": "test_author",
+    "approved": true,
+    "locked": true,
+    "sha256": null
+  },
+  {
+    "schema_version": 1,
+    "id": "T3",
+    "kind": "io_golden",
+    "symbol": null,
+    "level": "V6",
+    "inputs": {
+      "stdin": "y\nn\ny\nn\ny\nn\ny\nn\ny\nn\ny\nn\n"
+    },
+    "expect": {
+      "ret": null,
+      "regs": {},
+      "mem": {},
+      "stdout": null,
+      "stdout_contains": [
+        "Q1/12: Do you enjoy meeting new people? (y/n): ",
+        "Extraversion: 6\n",
+        "Neuroticism: 0\n",
+        "Temperament: Sanguine\n"
+      ],
+      "exit_code": 0
+    },
+    "reference": null,
+    "generator": null,
+    "visibility": "visible",
+    "origin": "test_author",
+    "approved": true,
+    "locked": true,
+    "sha256": null
+  },
+  {
+    "schema_version": 1,
+    "id": "T4",
+    "kind": "io_golden",
+    "symbol": null,
+    "level": "V6",
+    "inputs": {
+      "stdin": "n\ny\nn\ny\nn\ny\nn\ny\nn\ny\nn\ny\n"
+    },
+    "expect": {
+      "ret": null,
+      "regs": {},
+      "mem": {},
+      "stdout": null,
+      "stdout_contains": [
+        "Q1/12: Do you enjoy meeting new people? (y/n): ",
+        "Extraversion: 0\n",
+        "Neuroticism: 6\n",
+        "Temperament: Melancholic\n"
+      ],
+      "exit_code": 0
+    },
+    "reference": null,
+    "generator": null,
+    "visibility": "visible",
+    "origin": "test_author",
+    "approved": true,
+    "locked": true,
+    "sha256": null
+  },
+  {
+    "schema_version": 1,
+    "id": "T5",
+    "kind": "io_golden",
+    "symbol": null,
+    "level": "V6",
+    "inputs": {
+      "stdin": "y\ny\ny\ny\nn\nn\nn\nn\nn\nn\nn\nn\n"
+    },
+    "expect": {
+      "ret": null,
+      "regs": {},
+      "mem": {},
+      "stdout": null,
+      "stdout_contains": [
+        "Q1/12: Do you enjoy meeting new people? (y/n): ",
+        "Extraversion: 2\n",
+        "Neuroticism: 2\n",
+        "Temperament: Phlegmatic\n"
+      ],
+      "exit_code": 0
+    },
+    "reference": null,
+    "generator": null,
+    "visibility": "visible",
+    "origin": "test_author",
+    "approved": true,
+    "locked": true,
+    "sha256": null
+  },
+  {
+    "schema_version": 1,
+    "id": "T6",
+    "kind": "io_golden",
+    "symbol": null,
+    "level": "V6",
+    "inputs": {
+      "stdin": "Y\nY\nY\nY\nY\nY\nY\nY\nY\nY\nY\nY\n"
+    },
+    "expect": {
+      "ret": null,
+      "regs": {},
+      "mem": {},
+      "stdout": null,
+      "stdout_contains": [
+        "Q1/12: Do you enjoy meeting new people? (y/n): ",
+        "Extraversion: 6\n",
+        "Neuroticism: 6\n",
+        "Temperament: Choleric\n"
+      ],
+      "exit_code": 0
+    },
+    "reference": null,
+    "generator": null,
+    "visibility": "visible",
+    "origin": "test_author",
+    "approved": true,
+    "locked": true,
+    "sha256": null
+  }
+]
